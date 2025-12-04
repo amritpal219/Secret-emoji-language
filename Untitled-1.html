@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secret Emoji Language System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
+        .container { max-width: 900px; }
+        textarea { resize: none; }
+        .emoji-output {
+            background-color: #f0f4f8; 
+            color: #1a202c;
+            font-size: 24px; 
+            line-height: 1.5;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .mode-label input:checked + span { background-color: #3b82f6; color: white; font-weight: 600; }
+        .copy-button { transition: all 0.15s ease-in-out; }
+        .copy-button:hover { transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="container mx-auto bg-white p-6 md:p-10 rounded-xl shadow-2xl">
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-2 border-b-4 border-blue-500 pb-2">
+            👑 Secret Emoji Language System (Final)
+        </h1>
+        <p class="text-gray-600 mb-6">Password, unique emojis, te flawless space handling de naal complete. (Powered by Gemini)</p>
+
+        <!-- Mode Selector -->
+        <div class="flex justify-center space-x-4 mb-8 p-3 bg-gray-100 rounded-lg">
+            <label class="mode-label cursor-pointer flex-1 text-center">
+                <input type="radio" name="mode" value="encode" checked onchange="updateMode()" class="hidden">
+                <span class="py-2 px-4 rounded-lg block text-gray-700 hover:bg-blue-100 transition duration-150">1) MAKE Mode (Encode)</span>
+            </label>
+            <label class="mode-label cursor-pointer flex-1 text-center">
+                <input type="radio" name="mode" value="decode" onchange="updateMode()" class="hidden">
+                <span class="py-2 px-4 rounded-lg block text-gray-700 hover:bg-blue-100 transition duration-150">2) TRANSLATE Mode (Decode)</span>
+            </label>
+        </div>
+
+        <!-- Input Section -->
+        <div>
+            <label id="input-label" for="inputTextarea" class="block text-lg font-semibold text-gray-700 mb-2 transition-all">
+                Normal Text (Encode Karan layi)
+            </label>
+            <textarea id="inputTextarea" rows="6" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" placeholder="Aithe apna text type ya paste karo..." oninput="processInput()"></textarea>
+        </div>
+
+        <!-- Password Controls -->
+        <div id="password-controls" class="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-between">
+            <div id="encode-password-input" class="flex items-center space-x-3 hidden w-full">
+                <input type="checkbox" id="add-password-check" onchange="processInput()" class="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                <label for="add-password-check" class="text-gray-700 font-medium whitespace-nowrap">Add Password 🔐</label>
+                <input type="text" id="password-input-encode" class="flex-grow p-2 border border-gray-300 rounded-lg" placeholder="Chhota password (a-z, 0-9) enter karo" oninput="processInput()">
+            </div>
+            
+            <div id="decode-password-input" class="flex items-center space-x-3 hidden w-full">
+                <label for="password-input-decode" class="text-gray-700 font-medium whitespace-nowrap">Password 🔐</label>
+                <input type="password" id="password-input-decode" class="flex-grow p-2 border border-gray-300 rounded-lg" placeholder="Password enter karo (Agar zaroori hove)" oninput="processInput()">
+            </div>
+        </div>
+
+
+        <!-- Output Section -->
+        <div class="mt-8">
+            <label id="output-label" for="outputDiv" class="block text-lg font-semibold text-gray-700 mb-2 transition-all">
+                Secret Emoji Output
+            </label>
+            <div id="outputDiv" class="emoji-output p-4 rounded-lg min-h-[100px] border border-gray-300">
+                <!-- Converted output will appear here -->
+                <p class="text-gray-400 text-base">Tuhada converted message aithe dikhega...</p>
+            </div>
+            <button id="copyButton" class="copy-button mt-4 px-6 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150" onclick="copyOutput()">
+                COPY OUTPUT
+            </button>
+        </div>
+
+        <!-- Status Message -->
+        <div id="statusMessage" class="mt-4 p-3 rounded-lg text-center font-medium hidden"></div>
+
+    </div>
+
+    <script>
+        // --- 1. Emoji Mapping Definition ---
+        const SPACE_EMOJI = '〰️';
+        const PASS_START_EMOJI = '🔐';
+        const PASS_END_EMOJI = '🔑';
+
+        // Set 1: Main Content Mapping (A-Z, a-z, 0-9, Punctuation)
+        const contentMap = {
+            'A': '😀', 'B': '😂', 'C': '😇', 'D': '🥰', 'E': '🤩', 'F': '🤔', 'G': '🤫',
+            'H': '😶', 'I': '😴', 'J': '🤥', 'K': '😳', 'L': '🥺', 'M': '🤯', 'N': '🥵',
+            'O': '🥶', 'P': '😱', 'Q': '😨', 'R': '😢', 'S': '😭', 'T': '😤', 'U': '😈',
+            'V': '👹', 'W': '🤖', 'X': '🧑‍💻', 'Y': '🏃', 'Z': '🕺',
+
+            'a': '🍎', 'b': '🍌', 'c': '🥝', 'd': '🍇', 'e': '🍓', 'f': '🥥', 'g': '🍍',
+            'h': '🥦', 'i': '🥕', 'j': '🧅', 'k': '🌶️', 'l': '🫑', 'm': '⚽', 'n': '🏀',
+            'o': '🏈', 'p': '⚾', 'q': '🥎', 'r': '🏐', 's': '🎾', 't': '🎱', 'u': '🪃',
+            'v': '🪁', 'w': '🎮', 'x': '🕹️', 'y': '🎲', 'z': '🎯',
+            
+            '0': '0️⃣', '1': '1️⃣', '2': '2️⃣', '3': '3️⃣', '4': '4️⃣',
+            '5': '5️⃣', '6': '6️⃣', '7': '7️⃣', '8': '8️⃣', '9': '9️⃣',
+
+            '!': '❗', '?': '❓', '.': '❌', ',': '⏸️', '-': '🛑', ':': '🔚',
+        };
+
+        // Set 2: Password Character Mapping (Unique Set - a-z, 0-9 for passwords)
+        const passwordMap = {
+            'a': '🔺', 'b': '🔻', 'c': '◀️', 'd': '▶️', 'e': '⬆️', 'f': '⬇️', 'g': '⬅️',
+            'h': '➡️', 'i': '↖️', 'j': '↘️', 'k': '↩️', 'l': '↪️', 'm': '⬆️', 'n': '⬇️',
+            'o': '↗️', 'p': '↙️', 'q': '↔️', 'r': '↕️', 's': '🔄', 't': '🔃', 'u': '⬜', 
+            'v': '⬛', 'w': '⭐', 'x': '🌟', 'y': '🔸', 'z': '🔹',
+            
+            '0': '⚫', '1': '⚪', '2': '🟣', '3': '🟤', '4': '🔵',
+            '5': '🟢', '6': '🟠', '7': '🟨', '8': '🟥', '9': '🟪',
+        };
+
+        // Reverse Maps
+        const reverseContentMap = Object.entries(contentMap).reduce((acc, [char, emoji]) => { acc[emoji] = char; return acc; }, {});
+        const reversePasswordMap = Object.entries(passwordMap).reduce((acc, [char, emoji]) => { acc[emoji] = char; return acc; }, {});
+
+        // --- 2. Core Logic ---
+
+        // Helper to convert text to emoji using a specific map
+        function textToEmoji(text, map) {
+            let encoded = '';
+            // Only allow characters present in the map
+            const cleanText = text.toLowerCase().split('').filter(char => map[char]);
+            for (const char of cleanText) {
+                encoded += map[char];
+            }
+            return encoded;
+        }
+
+        // Helper to convert emoji tokens back to text using a specific map
+        function emojiToText(emojiTokens, map) {
+            let decoded = '';
+            for (const emoji of emojiTokens) {
+                const char = map[emoji];
+                if (char) {
+                    decoded += char;
+                }
+            }
+            return decoded;
+        }
+
+        function encodeText(plainText) {
+            let encodedMessage = '';
+            
+            // 1. Convert Message Content
+            for (const char of plainText) {
+                if (char === ' ') {
+                    encodedMessage += SPACE_EMOJI; // Space is 〰️
+                    continue;
+                }
+                
+                const emoji = contentMap[char];
+                if (emoji) {
+                    encodedMessage += emoji;
+                }
+            }
+
+            // 2. Add Password (if checked)
+            if (document.getElementById('add-password-check').checked) {
+                const password = document.getElementById('password-input-encode').value;
+                if (password.length > 0) {
+                    const encodedPassword = textToEmoji(password, passwordMap);
+                    
+                    if (encodedPassword.length > 0) {
+                        // Final format: [Message]🔐[Password Emojis]🔑
+                        encodedMessage += PASS_START_EMOJI + encodedPassword + PASS_END_EMOJI;
+                    }
+                }
+            }
+            
+            return encodedMessage;
+        }
+
+        function decodeText(encodedText) {
+            const outputDiv = document.getElementById('outputDiv');
+            
+            // 1. Identify and Extract Password Section
+            const startIdx = encodedText.indexOf(PASS_START_EMOJI);
+            const endIdx = encodedText.indexOf(PASS_END_EMOJI);
+            
+            let passwordRequired = false;
+            let expectedPasswordText = '';
+            let messagePart = encodedText;
+
+            if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+                passwordRequired = true;
+                
+                // Extract encoded password emojis
+                const encodedPassword = encodedText.substring(startIdx + PASS_START_EMOJI.length, endIdx);
+                
+                // Extract message part (before 🔐)
+                messagePart = encodedText.substring(0, startIdx);
+                
+                // Convert password emojis back to plain text for comparison
+                const passwordTokens = Array.from(encodedPassword);
+                expectedPasswordText = emojiToText(passwordTokens, reversePasswordMap);
+            }
+            
+            // 2. Password Check
+            if (passwordRequired) {
+                const userPassword = document.getElementById('password-input-decode').value;
+                
+                if (userPassword === '') {
+                    // Password required but not entered
+                    outputDiv.classList.remove('text-black');
+                    outputDiv.classList.add('text-red-600', 'font-bold');
+                    return "🔐 ACCESS DENIED: Password di zaroorat hai (Password is required).";
+                }
+                
+                if (userPassword !== expectedPasswordText) {
+                    // Incorrect password
+                    outputDiv.classList.remove('text-black');
+                    outputDiv.classList.add('text-red-600', 'font-bold');
+                    return "❌ ACCESS DENIED: Galat Password.";
+                }
+            }
+
+            // If no password required or password is correct, proceed to decode message
+            outputDiv.classList.remove('text-red-600', 'font-bold');
+            outputDiv.classList.add('text-black');
+
+
+            // 3. Decode Message Content (Flawless Space Fix)
+            let decodedMessage = '';
+            const messageTokens = Array.from(messagePart); // Tokenize message part
+
+            for (const emoji of messageTokens) {
+                if (emoji === SPACE_EMOJI) {
+                    // SPACE FIX: Convert SPACE_EMOJI (〰️) to a REAL SPACE (' ')
+                    decodedMessage += ' '; 
+                    continue;
+                }
+
+                const char = reverseContentMap[emoji];
+                if (char) {
+                    decodedMessage += char;
+                }
+                // Unknown emojis are skipped
+            }
+            
+            return decodedMessage;
+        }
+
+        // --- 3. UI and Interaction ---
+
+        const inputEl = document.getElementById('inputTextarea');
+        const outputEl = document.getElementById('outputDiv');
+        const inputLabelEl = document.getElementById('input-label');
+        const outputLabelEl = document.getElementById('output-label');
+        const copyButtonEl = document.getElementById('copyButton');
+        const encodePassControl = document.getElementById('encode-password-input');
+        const decodePassControl = document.getElementById('decode-password-input');
+
+        let currentMode = 'encode'; 
+
+        function togglePasswordInput() {
+            const checked = document.getElementById('add-password-check').checked;
+            const passInput = document.getElementById('password-input-encode');
+            if (checked) {
+                passInput.classList.remove('hidden');
+            } else {
+                passInput.classList.add('hidden');
+            }
+        }
+        document.getElementById('add-password-check').addEventListener('change', togglePasswordInput);
+
+
+        function updateMode() {
+            const selectedMode = document.querySelector('input[name="mode"]:checked').value;
+            currentMode = selectedMode;
+
+            // Toggle Password Input Fields based on Mode
+            if (currentMode === 'encode') {
+                encodePassControl.classList.remove('hidden');
+                decodePassControl.classList.add('hidden');
+            } else {
+                decodePassControl.classList.remove('hidden');
+                encodePassControl.classList.add('hidden');
+            }
+
+            if (currentMode === 'encode') {
+                inputLabelEl.textContent = 'Normal Text (Encode Karan layi)';
+                outputLabelEl.textContent = 'Secret Emoji Output';
+                inputEl.placeholder = 'Aithe apna text type ya paste karo...';
+                copyButtonEl.textContent = 'COPY EMOJI CODE';
+                outputEl.classList.add('emoji-output');
+                outputEl.classList.remove('text-base');
+
+            } else {
+                inputLabelEl.textContent = 'Secret Emoji Code (Translate Karan layi)';
+                outputLabelEl.textContent = 'Decoded Normal Text Output';
+                inputEl.placeholder = 'Aithe khufiya emoji code paste karo...';
+                copyButtonEl.textContent = 'COPY NORMAL TEXT';
+                // Decoding output must look like normal text
+                outputEl.classList.remove('emoji-output');
+                outputEl.classList.add('text-black', 'text-base', 'p-4');
+            }
+            // Trigger processInput to update the content based on the new mode
+            processInput();
+        }
+
+        function processInput() {
+            const input = inputEl.value;
+            let output = '';
+
+            if (input.trim() === '') {
+                outputEl.innerHTML = '<p class="text-gray-400 text-base">Tuhada converted message aithe dikhega...</p>';
+                copyButtonEl.disabled = true;
+                return;
+            }
+
+            copyButtonEl.disabled = false;
+
+            if (currentMode === 'encode') {
+                output = encodeText(input);
+                outputEl.textContent = output;
+                
+            } else {
+                output = decodeText(input);
+                outputEl.textContent = output;
+            }
+        }
+
+        function copyOutput() {
+            const outputText = outputEl.textContent;
+            if (outputText.includes("ACCESS DENIED") || outputText.trim() === '' || outputText.includes("Tuhada converted message")) {
+                 statusEl.textContent = "Copy nahi ho sakda!";
+                 statusEl.classList.remove('hidden', 'bg-green-100', 'text-green-700');
+                 statusEl.classList.add('bg-red-100', 'text-red-700', 'block');
+                 setTimeout(() => { statusEl.classList.add('hidden'); }, 3000);
+                 return;
+            }
+
+            // Use document.execCommand('copy') for better iframe compatibility
+            const tempInput = document.createElement('textarea');
+            tempInput.value = outputText;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            // Show status message
+            statusEl.textContent = currentMode === 'encode' 
+                ? 'Emoji Code Copy Kar Leya Gaya!' 
+                : 'Normal Text Copy Kar Leya Gaya!';
+            statusEl.classList.remove('hidden', 'bg-red-100', 'text-red-700');
+            statusEl.classList.add('bg-green-100', 'text-green-700', 'block');
+
+            setTimeout(() => {
+                statusEl.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Initialize on load
+        window.onload = function() {
+            updateMode(); // Set initial UI state
+            inputEl.value = 'Hello My Friends 123! This is the final test.'; // Initial text for testing space visibility and content
+            document.getElementById('password-input-encode').value = 'secret1';
+            processInput();
+        };
+
+    </script>
+</body>
+</html>
